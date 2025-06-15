@@ -12,7 +12,7 @@ TEXTS = {
     'es': {
         'page_title': "Análisis de Avistamientos de OVNIs", 'page_icon': "🛸",
         'title': "Dashboard Interactivo de Avistamientos de OVNIs 🛸",
-        'lang_button': "English/Español",
+        'lang_button': "English / Español",
         'tab1': "🗺️ Mapa de Avistamientos", 'tab2': "✨ Análisis de Formas", 'tab3': "📈 Tendencia Temporal",
         'sidebar_title': "Panel de Control",
         'year_filter_label': "Filtrar por Rango de Años:",
@@ -42,7 +42,7 @@ TEXTS = {
     'en': {
         'page_title': "UFO Sightings Analysis", 'page_icon': "🛸",
         'title': "Interactive UFO Sightings Dashboard 🛸",
-        'lang_button': "Español/English",
+        'lang_button': "Español / English",
         'tab1': "🗺️ Sightings Map", 'tab2': "✨ Shape Analysis", 'tab3': "📈 Temporal Trend",
         'sidebar_title': "Control Panel",
         'year_filter_label': "Filter by Year Range:",
