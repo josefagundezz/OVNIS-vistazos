@@ -81,8 +81,13 @@ st.set_page_config(
     page_icon="🛸",
     layout="wide"
 )
-if 'lang' not in st.session_state: st.session_state.lang = 'en'
-def toggle_language(): st.session_state.lang = 'es' if st.session_state.lang == 'en' else 'en'
+
+if 'lang' not in st.session_state:
+    st.session_state.lang = 'en'
+
+def toggle_language():
+    st.session_state.lang = 'es' if st.session_state.lang == 'en' else 'en'
+
 texts = TEXTS[st.session_state.lang]
 
 DATA_URLS = {
@@ -94,19 +99,32 @@ DATA_URLS = {
 def load_and_clean_data(data_period):
     url = DATA_URLS[data_period]
     df = pd.read_csv(url, low_memory=False)
-    df.rename(columns={'longitude ': 'longitude'}, inplace=True)
+    
+    # --- INICIO DE LA CORRECCIÓN ROBUSTA ---
+    # 1. Limpiamos TODOS los nombres de las columnas para eliminar espacios y caracteres extraños
+    df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')', '')
+    
+    # 2. Ahora trabajamos con nombres de columna limpios y predecibles
     df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce')
-    numeric_cols = ['duration (seconds)', 'latitude', 'longitude']
-    for col in numeric_cols: df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    numeric_cols = ['duration_seconds', 'latitude', 'longitude']
+    for col in numeric_cols:
+        if col in df.columns: # Verificamos si la columna existe antes de intentar convertirla
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
     cols_to_check = ['datetime', 'state', 'country', 'shape', 'latitude', 'longitude']
     df.dropna(subset=cols_to_check, inplace=True)
+    
     df = df[df['country'] == 'us'].copy()
     df['year'] = df['datetime'].dt.year.astype(int)
-    # --- INICIO DE LA CORRECCIÓN ---
-    # Usamos .str.upper() que es el método correcto de Pandas/Python
     df['state'] = df['state'].str.upper()
-    # --- FIN DE LA CORRECCIÓN ---
+    
+    # Renombramos la columna 'duration_seconds' para que el código viejo siga funcionando
+    if 'duration_seconds' in df.columns:
+        df.rename(columns={'duration_seconds': 'duration (seconds)'}, inplace=True)
+        
     return df
+    # --- FIN DE LA CORRECCIÓN ROBUSTA ---
 
 # --- INTERFAZ ---
 st.button(texts['lang_button'], on_click=toggle_language)
@@ -146,7 +164,6 @@ st.write("---")
 
 tab1, tab2, tab3 = st.tabs([texts['tab1'], texts['tab2'], texts['tab3']])
 
-# (El resto del código para las pestañas es el mismo y está correcto)
 with tab1:
     st.header(texts['map_header']); st.write(texts['map_desc'])
     if not df_filtered.empty and selected_state == all_states_option:
