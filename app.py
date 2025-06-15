@@ -81,13 +81,8 @@ st.set_page_config(
     page_icon="🛸",
     layout="wide"
 )
-
-if 'lang' not in st.session_state:
-    st.session_state.lang = 'en'
-
-def toggle_language():
-    st.session_state.lang = 'es' if st.session_state.lang == 'en' else 'en'
-
+if 'lang' not in st.session_state: st.session_state.lang = 'en'
+def toggle_language(): st.session_state.lang = 'es' if st.session_state.lang == 'en' else 'en'
 texts = TEXTS[st.session_state.lang]
 
 DATA_URLS = {
@@ -107,7 +102,10 @@ def load_and_clean_data(data_period):
     df.dropna(subset=cols_to_check, inplace=True)
     df = df[df['country'] == 'us'].copy()
     df['year'] = df['datetime'].dt.year.astype(int)
-    df['state'] = df['state'].str.toUpperCase()
+    # --- INICIO DE LA CORRECCIÓN ---
+    # Usamos .str.upper() que es el método correcto de Pandas/Python
+    df['state'] = df['state'].str.upper()
+    # --- FIN DE LA CORRECCIÓN ---
     return df
 
 # --- INTERFAZ ---
@@ -122,7 +120,6 @@ selected_period = st.sidebar.radio(
     dataset_options_keys,
     format_func=lambda key: texts['dataset_options'][key]
 )
-
 df_clean = load_and_clean_data(selected_period)
 
 min_year, max_year = int(df_clean['year'].min()), int(df_clean['year'].max())
@@ -149,6 +146,7 @@ st.write("---")
 
 tab1, tab2, tab3 = st.tabs([texts['tab1'], texts['tab2'], texts['tab3']])
 
+# (El resto del código para las pestañas es el mismo y está correcto)
 with tab1:
     st.header(texts['map_header']); st.write(texts['map_desc'])
     if not df_filtered.empty and selected_state == all_states_option:
