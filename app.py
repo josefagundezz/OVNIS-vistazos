@@ -1,4 +1,4 @@
-# app.py (Dashboard de Avistamientos de OVNIs - VERSIÓN FINAL FUNCIONAL)
+# app.py (Dashboard de Avistamientos de OVNIs - Versión 4.1 - COMPLETA Y FINAL)
 
 import streamlit as st
 import pandas as pd
@@ -7,24 +7,25 @@ import seaborn as sns
 import plotly.express as px
 from datetime import date
 
-# --- DICCIONARIO DE TEXTOS (COMPLETO) ---
+# --- 1. DICCIONARIO DE TEXTOS COMPLETO (ES/EN) ---
 TEXTS = {
     'es': {
         'page_title': "Análisis de Avistamientos de OVNIs", 'page_icon': "🛸",
         'title': "Dashboard Interactivo de Avistamientos de OVNIs 🛸",
         'lang_button': "English",
-        'subtitle': "Análisis de datos históricos de reportes en EE.UU. (hasta 2014)",
+        'dataset_selector_label': "Seleccionar Periodo de Datos:",
+        'dataset_options': {"historic": "Histórico (antes de 2015)", "recent": "Reciente (2015-2025)"},
         'tab1': "🗺️ Mapa de Avistamientos", 'tab2': "✨ Análisis de Formas", 'tab3': "📈 Tendencia Temporal",
         'sidebar_title': "Panel de Control",
         'year_filter_label': "Filtrar por Rango de Años:",
-        'state_filter_label': "Filtrar por Estado:",
-        'shape_filter_label': "Filtrar por Forma:",
+        'state_filter_label': "Filtrar por Estado (Opcional):",
+        'shape_filter_label': "Filtrar por Forma (Opcional):",
         'all_option': "Todos / Todas",
         'filters_header': "Filtros aplicados:",
         'filters_year': "Años", 'filters_state': "Estado", 'filters_shape': "Forma",
         'results_found': "Total de avistamientos encontrados:",
         'map_header': "Mapa de Calor de Avistamientos",
-        'map_desc': "Los estados con colores más intensos tienen más reportes en el periodo seleccionado.",
+        'map_desc': "Los estados más intensos tienen más reportes en el periodo seleccionado.",
         'map_plot_title': "Avistamientos en EE.UU.",
         'map_legend': "Número de Reportes",
         'map_info': "Mostrando datos solo para {}. Para ver el mapa completo, selecciona '{}' en el filtro de estado.",
@@ -44,12 +45,13 @@ TEXTS = {
         'page_title': "UFO Sightings Analysis", 'page_icon': "🛸",
         'title': "Interactive UFO Sightings Dashboard 🛸",
         'lang_button': "Español",
-        'subtitle': "Analysis of historical report data in the USA (until 2014)",
+        'dataset_selector_label': "Select Data Period:",
+        'dataset_options': {"historic": "Historical (pre-2015)", "recent": "Recent (2015-2025)"},
         'tab1': "🗺️ Sightings Map", 'tab2': "✨ Shape Analysis", 'tab3': "📈 Temporal Trend",
         'sidebar_title': "Control Panel",
         'year_filter_label': "Filter by Year Range:",
-        'state_filter_label': "Filter by State:",
-        'shape_filter_label': "Filter by Shape:",
+        'state_filter_label': "Filter by State (Optional):",
+        'shape_filter_label': "Filter by Shape (Optional):",
         'all_option': "All",
         'filters_header': "Active filters:",
         'filters_year': "Years", 'filters_state': "State", 'filters_shape': "Shape",
@@ -73,48 +75,62 @@ TEXTS = {
     }
 }
 
+
 # --- LÓGICA DE LA APP ---
-st.set_page_config(page_title=TEXTS[st.session_state.get('lang', 'en')]['page_title'], page_icon="🛸", layout="wide")
+st.set_page_config(
+    page_title=TEXTS[st.session_state.get('lang', 'en')]['page_title'],
+    page_icon="🛸",
+    layout="wide"
+)
 
 if 'lang' not in st.session_state:
     st.session_state.lang = 'en'
 
 def toggle_language():
     st.session_state.lang = 'es' if st.session_state.lang == 'en' else 'en'
+
 texts = TEXTS[st.session_state.lang]
 
+DATA_URLS = {
+    "historic": 'https://gist.githubusercontent.com/dezzf/039463c267b36f7881c1251978258e77/raw/958357069142274431f492b45a27814b64f5195e/ufo_scrubbed_pre2015.csv',
+    "recent": 'https://gist.githubusercontent.com/dezzf/039463c267b36f7881c1251978258e77/raw/958357069142274431f492b45a27814b64f5195e/ufo_recent_2015_2025.csv'
+}
+
 @st.cache_data
-def load_and_clean_data():
-    url = 'https://gist.githubusercontent.com/dezzf/039463c267b36f7881c1251978258e77/raw/958357069142274431f492b45a27814b64f5195e/ufo_scrubbed_pre2015.csv'
+def load_and_clean_data(data_period):
+    url = DATA_URLS[data_period]
     df = pd.read_csv(url, low_memory=False)
-    
-    # Limpieza Sencilla y Probada
     df.rename(columns={'longitude ': 'longitude'}, inplace=True)
     df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce')
-    
     numeric_cols = ['duration (seconds)', 'latitude', 'longitude']
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-
+    for col in numeric_cols: df[col] = pd.to_numeric(df[col], errors='coerce')
     cols_to_check = ['datetime', 'state', 'country', 'shape', 'latitude', 'longitude']
     df.dropna(subset=cols_to_check, inplace=True)
-    
     df = df[df['country'] == 'us'].copy()
     df['year'] = df['datetime'].dt.year.astype(int)
     df['state'] = df['state'].str.upper()
     return df
 
-df_clean = load_and_clean_data()
-
 # --- INTERFAZ ---
 st.button(texts['lang_button'], on_click=toggle_language)
 st.title(texts['title'])
-st.subheader(texts['subtitle'])
 
 st.sidebar.title(texts['sidebar_title'])
 
+dataset_options_keys = list(texts['dataset_options'].keys())
+selected_period = st.sidebar.radio(
+    texts['dataset_selector_label'],
+    dataset_options_keys,
+    format_func=lambda key: texts['dataset_options'][key]
+)
+
+df_clean = load_and_clean_data(selected_period)
+
 min_year, max_year = int(df_clean['year'].min()), int(df_clean['year'].max())
-selected_years = st.sidebar.slider(texts['year_filter_label'], min_year, max_year, (min_year, max_year))
+selected_years = st.sidebar.slider(
+    texts['year_filter_label'],
+    min_year, max_year, (min_year, max_year)
+)
 
 all_states_option = texts['all_option']
 state_list = [all_states_option] + sorted(df_clean['state'].unique().tolist())
@@ -135,7 +151,7 @@ st.write("---")
 tab1, tab2, tab3 = st.tabs([texts['tab1'], texts['tab2'], texts['tab3']])
 
 with tab1:
-    st.header(texts['map_header'])
+    st.header(texts['map_header']); st.write(texts['map_desc'])
     if not df_filtered.empty and selected_state == all_states_option:
         state_counts = df_filtered['state'].value_counts().reset_index(); state_counts.columns = ['state_code', 'sighting_count']
         fig = px.choropleth(data_frame=state_counts, locations='state_code', locationmode="USA-states", color='sighting_count', scope="usa", color_continuous_scale="Plasma", title=texts['map_plot_title'], labels={'sighting_count': texts['map_legend']})
@@ -144,17 +160,17 @@ with tab1:
     else: st.warning(texts['no_data_warning'])
 
 with tab2:
-    st.header(texts['shape_header'])
+    st.header(texts['shape_header']); st.write(texts['shape_desc'])
     if not df_filtered.empty:
         top_shapes = df_filtered['shape'].value_counts().nlargest(15)
         fig, ax = plt.subplots(figsize=(12, 8))
-        sns.barplot(x=top_shapes.values, y=top_shapes.index, palette='inferno', ax=ax)
+        sns.barplot(x=top_shapes.values, y=top_shapes.index, palette='inferno', ax=ax, hue=top_shapes.index, legend=False)
         ax.set_title(texts['shape_plot_title'], fontsize=16); ax.set_xlabel(texts['shape_axis_x'], fontsize=12); ax.set_ylabel(texts['shape_axis_y'], fontsize=12)
         st.pyplot(fig)
     else: st.warning(texts['no_data_warning'])
 
 with tab3:
-    st.header(texts['time_header'])
+    st.header(texts['time_header']); st.write(texts['time_desc'])
     if not df_filtered.empty:
         yearly_counts = df_filtered['year'].value_counts().sort_index()
         fig, ax = plt.subplots(figsize=(16, 8))
